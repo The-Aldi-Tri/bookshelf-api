@@ -1,7 +1,8 @@
-const books = require("./books");
 const { nanoid } = require("nanoid");
+const Sequelize = require("sequelize");
+const Books = require("./models/books");
 
-const createBookHandler = (request, h) => {
+const createBookHandler = async (request, h) => {
   const bodyData = request.payload;
 
   if (!bodyData.name) {
@@ -33,21 +34,20 @@ const createBookHandler = (request, h) => {
     updatedAt: dateTime,
   };
 
-  books.push(newBook);
+  try {
+    const createdBook = await Books.create(newBook);
 
-  const isSuccess = books.some((book) => book.id === newBook.id);
-
-  if (isSuccess) {
     return h
       .response({
         status: "success",
         message: "Buku berhasil ditambahkan",
         data: {
-          bookId: newBook.id,
+          bookId: createdBook.id,
         },
       })
       .code(201);
-  } else {
+  } catch (error) {
+    console.error(error);
     return h
       .response({
         status: "fail",
@@ -57,71 +57,98 @@ const createBookHandler = (request, h) => {
   }
 };
 
-const getAllBooksHandler = (request, h) => {
+const getAllBooksHandler = async (request, h) => {
   const queries = request.query;
-  let tempBooks = books;
 
-  if (queries) {
-    if (queries.name) {
-      tempBooks = tempBooks.filter((book) =>
-        book.name.toLowerCase().includes(queries.name.toLowerCase())
-      );
+  try {
+    const options = {};
+
+    if (queries) {
+      if (queries.name) {
+        options.where = {
+          name: {
+            [Sequelize.Op.iLike]: `%${queries.name}%`,
+          },
+        };
+      }
+
+      if (queries.reading) {
+        options.where = {
+          ...options.where,
+          reading: queries.reading === "1" ? true : false,
+        };
+      }
+
+      if (queries.finished) {
+        options.where = {
+          ...options.where,
+          finished: queries.finished === "1" ? true : false,
+        };
+      }
     }
 
-    if (queries.reading) {
-      tempBooks = tempBooks.filter(
-        (book) => book.reading === (queries.reading === "1" ? true : false)
-      );
-    }
+    const books = await Books.findAll(options);
 
-    if (queries.finished) {
-      tempBooks = tempBooks.filter(
-        (book) => book.finished === (queries.finished === "1" ? true : false)
-      );
-    }
-  }
-
-  return h
-    .response({
-      status: "success",
-      data: {
-        books: tempBooks.map((book) => {
-          return {
-            id: book.id,
-            name: book.name,
-            publisher: book.publisher,
-          };
-        }),
-      },
-    })
-    .code(200);
-};
-
-const getBookByIdHandler = (request, h) => {
-  const { bookId } = request.params;
-
-  const tempBooks = books.find((book) => book.id === bookId);
-
-  if (tempBooks) {
     return h
       .response({
         status: "success",
         data: {
-          book: tempBooks,
+          books: books.map((book) => {
+            return {
+              id: book.id,
+              name: book.name,
+              publisher: book.publisher,
+            };
+          }),
         },
       })
       .code(200);
-  } else {
+  } catch (error) {
+    console.error(error);
     return h
       .response({
         status: "fail",
-        message: "Buku tidak ditemukan",
+        message: "Terjadi kesalahan pada server",
       })
-      .code(404);
+      .code(500);
   }
 };
 
-const updateBookByIdHandler = (request, h) => {
+const getBookByIdHandler = async (request, h) => {
+  const { bookId } = request.params;
+
+  try {
+    const book = await Books.findByPk(bookId);
+
+    if (book) {
+      return h
+        .response({
+          status: "success",
+          data: {
+            book,
+          },
+        })
+        .code(200);
+    } else {
+      return h
+        .response({
+          status: "fail",
+          message: "Buku tidak ditemukan",
+        })
+        .code(404);
+    }
+  } catch (error) {
+    console.error(error);
+    return h
+      .response({
+        status: "fail",
+        message: "Terjadi kesalahan pada server",
+      })
+      .code(500);
+  }
+};
+
+const updateBookByIdHandler = async (request, h) => {
   const { bookId } = request.params;
   const bodyData = request.payload;
 
@@ -144,53 +171,79 @@ const updateBookByIdHandler = (request, h) => {
       .code(400);
   }
 
-  const bookIndex = books.findIndex((book) => book.id === bookId);
+  try {
+    const [updated] = await Books.update(
+      {
+        ...bodyData,
+        finished: bodyData.readPage === bodyData.pageCount,
+        updatedAt: new Date().toISOString(),
+      },
+      {
+        where: {
+          id: bookId,
+        },
+      }
+    );
 
-  if (bookIndex === -1) {
+    if (updated) {
+      return h
+        .response({
+          status: "success",
+          message: "Buku berhasil diperbarui",
+        })
+        .code(200);
+    } else {
+      return h
+        .response({
+          status: "fail",
+          message: "Gagal memperbarui buku. Id tidak ditemukan",
+        })
+        .code(404);
+    }
+  } catch (error) {
+    console.error(error);
     return h
       .response({
         status: "fail",
-        message: "Gagal memperbarui buku. Id tidak ditemukan",
+        message: "Terjadi kesalahan pada server",
       })
-      .code(404);
-  } else {
-    const updatedBook = {
-      ...bodyData,
-      finished: bodyData.readPage === bodyData.pageCount ? true : false,
-      updatedAt: new Date().toISOString(),
-    };
-
-    books[bookIndex] = Object.assign(books[bookIndex], updatedBook);
-
-    return h
-      .response({
-        status: "success",
-        message: "Buku berhasil diperbarui",
-      })
-      .code(200);
+      .code(500);
   }
 };
 
-const deleteBookByIdHandler = (request, h) => {
+const deleteBookByIdHandler = async (request, h) => {
   const { bookId } = request.params;
 
-  const bookIndex = books.findIndex((book) => book.id === bookId);
+  try {
+    const deleted = await Books.destroy({
+      where: {
+        id: bookId,
+      },
+    });
 
-  if (bookIndex === -1) {
+    if (deleted) {
+      return h
+        .response({
+          status: "success",
+          message: "Buku berhasil dihapus",
+        })
+        .code(200);
+    } else {
+      return h
+        .response({
+          status: "fail",
+          message: "Buku gagal dihapus. Id tidak ditemukan",
+        })
+        .code(404);
+    }
+  } catch (error) {
+    console.error(error);
     return h
       .response({
         status: "fail",
-        message: "Buku gagal dihapus. Id tidak ditemukan",
+        message: "Terjadi kesalahan pada server",
       })
-      .code(404);
-  } else {
-    books.splice(bookIndex, 1);
-    return h
-      .response({
-        status: "success",
-        message: "Buku berhasil dihapus",
-      })
-      .code(200);
+      .code(500);
   }
 };
 

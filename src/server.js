@@ -1,20 +1,24 @@
 const Hapi = require("@hapi/hapi");
-const bookRoutes = require("./routes");
+const routes = require("./routes");
+const sequelize = require("./connection/database");
 
-async function init() {
+const init = async () => {
   const server = Hapi.server({
     port: 9000,
     host: "localhost",
-    routes: {
-      cors: {
-        origin: ["*"],
-      },
-    },
   });
 
-  server.route(bookRoutes);
+  server.route(routes);
+
+  await sequelize.sync();
 
   await server.start();
-}
+  console.log(`Server running at: ${server.info.uri}`);
+};
+
+process.on("unhandledRejection", (err) => {
+  console.log(err);
+  process.exit(1);
+});
 
 init();

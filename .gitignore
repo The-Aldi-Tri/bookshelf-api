@@ -4,3 +4,6 @@ npm-debug.log
 
 # Visual Studio Code
 .vscode/
+
+# dot env
+.env

@@ -1,8 +1,8 @@
 const Sequelize = require("sequelize");
-const sequelize = require("../connection/database");
+const sequelize = require("../connections/database");
 
 const Book = sequelize.define(
-  "book",
+  "Book",
   {
     id: {
       type: Sequelize.STRING,

@@ -1,25 +1,23 @@
 const { nanoid } = require("nanoid");
 const Sequelize = require("sequelize");
 const Book = require("./models/book");
+const {
+  createBookPayloadSchema,
+  updateBookPayloadSchema,
+  bookIdParamsSchema,
+  getBookQuerySchema,
+  validateBook,
+} = require("./bookValidation");
 
 const createBookHandler = async (request, h) => {
   const bodyData = request.payload;
 
-  if (!bodyData.name) {
+  const { error } = await validateBook(createBookPayloadSchema, bodyData);
+  if (error) {
     return h
       .response({
         status: "fail",
-        message: "Gagal menambahkan buku. Mohon isi nama buku",
-      })
-      .code(400);
-  }
-
-  if (bodyData.readPage > bodyData.pageCount) {
-    return h
-      .response({
-        status: "fail",
-        message:
-          "Gagal menambahkan buku. readPage tidak boleh lebih besar dari pageCount",
+        message: error.details[0].message,
       })
       .code(400);
   }
@@ -59,6 +57,16 @@ const createBookHandler = async (request, h) => {
 
 const getAllBooksHandler = async (request, h) => {
   const queries = request.query;
+
+  const { error } = await validateBook(getBookQuerySchema, queries);
+  if (error) {
+    return h
+      .response({
+        status: "fail",
+        message: error.details[0].message,
+      })
+      .code(400);
+  }
 
   try {
     const options = {};
@@ -117,6 +125,16 @@ const getAllBooksHandler = async (request, h) => {
 const getBookByIdHandler = async (request, h) => {
   const { bookId } = request.params;
 
+  const { error } = await validateBook(bookIdParamsSchema, bookId);
+  if (error) {
+    return h
+      .response({
+        status: "fail",
+        message: error.details[0].message,
+      })
+      .code(400);
+  }
+
   try {
     const book = await Book.findByPk(bookId);
 
@@ -152,21 +170,23 @@ const updateBookByIdHandler = async (request, h) => {
   const { bookId } = request.params;
   const bodyData = request.payload;
 
-  if (!bodyData.name) {
+  const errorParams = await validateBook(bookIdParamsSchema, bookId).error;
+  if (errorParams) {
     return h
       .response({
         status: "fail",
-        message: "Gagal memperbarui buku. Mohon isi nama buku",
+        message: errorParams.details[0].message,
       })
       .code(400);
   }
 
-  if (bodyData.readPage > bodyData.pageCount) {
+  const errorPayload = await validateBook(updateBookPayloadSchema, bodyData)
+    .error;
+  if (errorPayload) {
     return h
       .response({
         status: "fail",
-        message:
-          "Gagal memperbarui buku. readPage tidak boleh lebih besar dari pageCount",
+        message: errorPayload.details[0].message,
       })
       .code(400);
   }
@@ -213,6 +233,16 @@ const updateBookByIdHandler = async (request, h) => {
 
 const deleteBookByIdHandler = async (request, h) => {
   const { bookId } = request.params;
+
+  const { error } = await validateBook(bookIdParamsSchema, bookId);
+  if (error) {
+    return h
+      .response({
+        status: "fail",
+        message: error.details[0].message,
+      })
+      .code(400);
+  }
 
   try {
     const deleted = await Book.destroy({

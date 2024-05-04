@@ -1,6 +1,6 @@
 const { nanoid } = require("nanoid");
 const Sequelize = require("sequelize");
-const Books = require("./models/books");
+const Book = require("./models/book");
 
 const createBookHandler = async (request, h) => {
   const bodyData = request.payload;
@@ -35,7 +35,7 @@ const createBookHandler = async (request, h) => {
   };
 
   try {
-    const createdBook = await Books.create(newBook);
+    const createdBook = await Book.create(newBook);
 
     return h
       .response({
@@ -87,13 +87,13 @@ const getAllBooksHandler = async (request, h) => {
       }
     }
 
-    const books = await Books.findAll(options);
+    const filteredBooks = await Book.findAll(options);
 
     return h
       .response({
         status: "success",
         data: {
-          books: books.map((book) => {
+          books: filteredBooks.map((book) => {
             return {
               id: book.id,
               name: book.name,
@@ -118,7 +118,7 @@ const getBookByIdHandler = async (request, h) => {
   const { bookId } = request.params;
 
   try {
-    const book = await Books.findByPk(bookId);
+    const book = await Book.findByPk(bookId);
 
     if (book) {
       return h
@@ -172,7 +172,7 @@ const updateBookByIdHandler = async (request, h) => {
   }
 
   try {
-    const [updated] = await Books.update(
+    const [updated] = await Book.update(
       {
         ...bodyData,
         finished: bodyData.readPage === bodyData.pageCount,
@@ -215,7 +215,7 @@ const deleteBookByIdHandler = async (request, h) => {
   const { bookId } = request.params;
 
   try {
-    const deleted = await Books.destroy({
+    const deleted = await Book.destroy({
       where: {
         id: bookId,
       },

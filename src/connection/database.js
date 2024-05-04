@@ -11,10 +11,10 @@ const sequelize = new Sequelize(
     pool: {
       max: 5,
       min: 0,
-      acquire: 30000,
-      idle: 10000,
+      acquire: 30000, // defines the maximum time (in milliseconds) that a connection can be idle before being released
+      idle: 10000, // defines the maximum time (in milliseconds) that a connection can be idle in the pool before being released
     },
-    logging: true, // Enable or Disable logging in console log
+    logging: console.log, // false for disable logging
   }
 );
 

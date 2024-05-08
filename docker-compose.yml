@@ -1,0 +1,29 @@
+name: node-postgres-app
+services:
+  node-api:
+    depends_on:
+      - postgres-db
+    build: .
+    container_name: node-api
+    env_file: ./.env
+    ports:
+      - $NODE_LOCAL_PORT:$NODE_DOCKER_PORT
+    environment:
+      - DB_HOST=postgres-db
+      - DB_USERNAME=$DB_USERNAME
+      - DB_PASSWORD=$DB_PASSWORD
+      - DB_NAME=$DB_NAME
+
+  postgres-db:
+    image: postgres:16.2
+    container_name: postgres-db
+    env_file: ./.env
+    environment:
+      - POSTGRES_USER=$DB_USERNAME
+      - POSTGRES_PASSWORD=$DB_PASSWORD
+      - POSTGRES_DB=$DB_NAME
+    volumes:
+      - db:/var/lib/postgres
+
+volumes:
+  db:
